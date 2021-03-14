@@ -76,6 +76,18 @@ class BlockChain(object):
         logger.info({'action': 'mining', 'status': 'success'})
         return True
 
+    def calculate_total_amount(self, blockchain_address):
+        total_amount = 0.0
+        for block in self.chain:
+            for transaction in block['transactions']:
+                value = float(transaction['value'])
+                if blockchain_address == transaction['recipient_blockchain_address']:
+                    total_amount += value
+                if blockchain_address == transaction['sender_blockchain_address']:
+                    total_amount -= value
+        return total_amount
+
+
 if __name__ == '__main__':
     my_blockchain_address = 'my_blockchain_address'
     blockchain = BlockChain(blockchain_address=my_blockchain_address)
@@ -89,3 +101,8 @@ if __name__ == '__main__':
     blockchain.add_transaction('X', 'Y', 3.0)
     blockchain.mining()
     utils.pprint(blockchain.chain)
+
+    print('my', blockchain.calculate_total_amount(my_blockchain_address))
+    print('C', blockchain.calculate_total_amount('C'))
+    print('D', blockchain.calculate_total_amount('D'))
+    
