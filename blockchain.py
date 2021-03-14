@@ -6,15 +6,20 @@ import time
 
 import utils
 
-logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+MINING_DIFFICULTY = 3
+MINING_SENDER = 'THE BLOCKCHAIN'
+MINING_REWARD = 1.0
 
+logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+logger = logging.getLogger(__name__)
 
 class BlockChain(object):
 
-    def __init__(self):
+    def __init__(self, blockchain_address=None):
         self.transaction_pool = []
         self.chain = []
         self.create_block(0, self.hash({}))
+        self.blockchain_address = blockchain_address
     
     def create_block(self, nonce, previous_hash):
         block = utils.sorted_dict_by_key({
@@ -41,32 +46,46 @@ class BlockChain(object):
         self.transaction_pool.append(transaction)
         return True
 
+    def valid_proof(self, transactions, previous_hash, nonce,
+                        difficulty=MINING_DIFFICULTY):
+        guess_block = utils.sorted_dict_by_key({
+            'transactions': transactions,
+            'previous_hash': previous_hash,
+            'nonce': nonce
+        })
+        guess_hash = self.hash(guess_block)
+        return guess_hash[:difficulty] == '0'*difficulty
 
-def pprint(chains):
-    for i, chain in enumerate(chains):
-        print(f'{"="*25} chain {i} {"="*25}')
-        for k, v in chain.items():
-            if k == 'transactions':
-                print(k)
-                for d in v:
-                    print(f'{"-"*40}')
-                    for kk, vv in d.items():
-                        print(f' {kk:30}{vv}')
-            else:
-                print(f'{k:15}{v}')
-    print(f'{"*"*25}')
+    def proof_of_work(self):
+        transactions = self.transaction_pool.copy()
+        previous_hash = self.hash(self.chain[-1])
+        nonce = 0
+        while self.valid_proof(transactions, previous_hash, nonce) is False:
+            nonce += 1
+        return nonce
+    
+    def mining(self):
+        self.add_transaction(
+            sender_blockchain_address=MINING_SENDER,
+            recipient_blockchain_address=self.blockchain_address,
+            value=MINING_REWARD
+        )
+        nonce = self.proof_of_work()
+        previous_hash = self.hash(self.chain[-1])
+        self.create_block(nonce, previous_hash)
+        logger.info({'action': 'mining', 'status': 'success'})
+        return True
 
 if __name__ == '__main__':
-    blockchain = BlockChain()
-    pprint(blockchain.chain)
+    my_blockchain_address = 'my_blockchain_address'
+    blockchain = BlockChain(blockchain_address=my_blockchain_address)
+    utils.pprint(blockchain.chain)
 
     blockchain.add_transaction('A', 'B', 1.0)
-    previous_hash = blockchain.hash(blockchain.chain[-1])
-    blockchain.create_block(5, previous_hash)
-    pprint(blockchain.chain)
+    blockchain.mining()
+    utils.pprint(blockchain.chain)
 
     blockchain.add_transaction('C', 'D', 2.0)
     blockchain.add_transaction('X', 'Y', 3.0)
-    previous_hash = blockchain.hash(blockchain.chain[-1])
-    blockchain.create_block(2, previous_hash)
-    pprint(blockchain.chain)
+    blockchain.mining()
+    utils.pprint(blockchain.chain)
