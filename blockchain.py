@@ -4,6 +4,9 @@ import logging
 import sys
 import time
 
+from ecdsa import NIST256p
+from ecdsa import VerifyingKey
+
 import utils
 
 MINING_DIFFICULTY = 3
@@ -37,14 +40,38 @@ class BlockChain(object):
         return hashlib.sha256(sorted_block.encode()).hexdigest()
     
     def add_transaction(self, sender_blockchain_address, 
-                        recipient_blockchain_address, value):
+                        recipient_blockchain_address, value,
+                        sender_public_key=None, signature=None):
         transaction = utils.sorted_dict_by_key({
             'sender_blockchain_address': sender_blockchain_address,
             'recipient_blockchain_address': recipient_blockchain_address,
             'value': float(value)
         })
-        self.transaction_pool.append(transaction)
-        return True
+        if sender_blockchain_address == MINING_SENDER:
+            self.transaction_pool.append(transaction)
+            return True
+
+        if self.verify_transaction_signature(
+                sender_public_key, signature, transaction):
+            # if self.calculate_total_amount(self.blockchain_address) < value:
+            #     logger.error({'action': 'add_transaction', 'error': 'no_value'})
+            #     return False
+            
+            self.transaction_pool.append(transaction)
+            return True
+        return False
+    
+    def verify_transaction_signature(self, sender_public_key, signature, transaction):
+        sha256 = hashlib.sha256()
+        sha256.update(str(transaction).encode('utf-8'))
+        message = sha256.digest()
+        signature_bytes = bytes().fromhex(signature)
+        verifying_key = VerifyingKey.from_string(
+            bytes().fromhex(sender_public_key), curve=NIST256p
+        )
+        verified_key = verifying_key.verify(signature_bytes, message)
+        return verified_key
+
 
     def valid_proof(self, transactions, previous_hash, nonce,
                         difficulty=MINING_DIFFICULTY):
@@ -87,22 +114,3 @@ class BlockChain(object):
                     total_amount -= value
         return total_amount
 
-
-if __name__ == '__main__':
-    my_blockchain_address = 'my_blockchain_address'
-    blockchain = BlockChain(blockchain_address=my_blockchain_address)
-    utils.pprint(blockchain.chain)
-
-    blockchain.add_transaction('A', 'B', 1.0)
-    blockchain.mining()
-    utils.pprint(blockchain.chain)
-
-    blockchain.add_transaction('C', 'D', 2.0)
-    blockchain.add_transaction('X', 'Y', 3.0)
-    blockchain.mining()
-    utils.pprint(blockchain.chain)
-
-    print('my', blockchain.calculate_total_amount(my_blockchain_address))
-    print('C', blockchain.calculate_total_amount('C'))
-    print('D', blockchain.calculate_total_amount('D'))
-    
