@@ -18,4 +18,4 @@ if __name__ == '__main__':
     args = parser.parse_args()
     port = args.port
 
-    app.run(host='172.17.0.2', port=port, threaded=True, debug=True)
+    app.run(host='0.0.0.0', port=port, threaded=True, debug=True)
